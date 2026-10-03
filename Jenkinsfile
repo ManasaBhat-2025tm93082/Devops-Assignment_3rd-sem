@@ -7,26 +7,22 @@ pipeline {
         }
         stage('Clean Build Environment') {
             steps {
-                sh '''
-                    rm -rf venv
-                    python3 -m venv venv
-                    . venv/bin/activate
-                    pip install --upgrade pip
-                    pip install -r requirements-dev.txt
+                bat '''
+                    if exist venv rmdir /s /q venv
+                    python -m venv venv
+                    venv\\Scripts\\python -m pip install --upgrade pip
+                    venv\\Scripts\\python -m pip install -r requirements-dev.txt
                 '''
             }
         }
+        stage('Compile Check') {
+            steps { bat 'venv\\Scripts\\python -m py_compile app.py' }
+        }
         stage('Lint') {
-            steps { sh '. venv/bin/activate && flake8 .' }
+            steps { bat 'venv\\Scripts\\python -m flake8 .' }
         }
         stage('Unit Tests') {
-            steps { sh '. venv/bin/activate && pytest -v' }
-        }
-        stage('Docker Build') {
-            steps { sh 'docker build --target base -t aceest-fitness:${BUILD_NUMBER} .' }
-        }
-        stage('Docker Test') {
-            steps { sh 'docker build --target test -t aceest-fitness:test . && docker run --rm aceest-fitness:test' }
+            steps { bat 'venv\\Scripts\\python -m pytest -v' }
         }
     }
     post {
