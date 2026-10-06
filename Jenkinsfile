@@ -1,3 +1,4 @@
+// Linux Jenkins agent. Docker stages run only if Docker is available on the agent.
 pipeline {
     agent any
     options { timestamps() }
@@ -7,22 +8,31 @@ pipeline {
         }
         stage('Clean Build Environment') {
             steps {
-                bat '''
-                    if exist venv rmdir /s /q venv
-                    python -m venv venv
-                    venv\\Scripts\\python -m pip install --upgrade pip
-                    venv\\Scripts\\python -m pip install -r requirements-dev.txt
+                sh '''
+                    rm -rf venv
+                    python3 -m venv venv
+                    . venv/bin/activate
+                    python -m pip install --upgrade pip
+                    python -m pip install -r requirements-dev.txt
                 '''
             }
         }
         stage('Compile Check') {
-            steps { bat 'venv\\Scripts\\python -m py_compile app.py' }
+            steps { sh '. venv/bin/activate && python -m py_compile app.py' }
         }
         stage('Lint') {
-            steps { bat 'venv\\Scripts\\python -m flake8 .' }
+            steps { sh '. venv/bin/activate && python -m flake8 .' }
         }
         stage('Unit Tests') {
-            steps { bat 'venv\\Scripts\\python -m pytest -v' }
+            steps { sh '. venv/bin/activate && python -m pytest -v' }
+        }
+        stage('Docker Build & Test') {
+            when { expression { sh(script: 'command -v docker', returnStatus: true) == 0 } }
+            steps {
+                sh 'docker build --target base -t aceest-fitness:${BUILD_NUMBER} .'
+                sh 'docker build --target test -t aceest-fitness:test .'
+                sh 'docker run --rm aceest-fitness:test'
+            }
         }
     }
     post {
