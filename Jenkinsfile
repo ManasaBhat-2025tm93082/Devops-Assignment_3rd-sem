@@ -1,4 +1,5 @@
-// Linux Jenkins agent. Docker stages run only if Docker is available on the agent.
+// Linux Jenkins agent. The Docker stage runs only if Jenkins can use Docker;
+// otherwise it is skipped (Docker build/test is also covered by GitHub Actions).
 pipeline {
     agent any
     options { timestamps() }
@@ -27,7 +28,7 @@ pipeline {
             steps { sh '. venv/bin/activate && python -m pytest -v' }
         }
         stage('Docker Build & Test') {
-            when { expression { sh(script: 'command -v docker', returnStatus: true) == 0 } }
+            when { expression { sh(script: 'docker info > /dev/null 2>&1', returnStatus: true) == 0 } }
             steps {
                 sh 'docker build --target base -t aceest-fitness:${BUILD_NUMBER} .'
                 sh 'docker build --target test -t aceest-fitness:test .'
